@@ -1,0 +1,67 @@
+name: Build kmod-ifb kmod-sched-cake for RK3568
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential libncurses5-dev libncursesw5-dev \
+            zlib1g-dev gawk git gettext libssl-dev xsltproc \
+            rsync wget unzip python3 python3-distutils flex bison
+
+      - name: Update feeds
+        run: |
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Configure build
+        run: |
+          cat > .config << 'EOF'
+          CONFIG_TARGET_rockchip=y
+          CONFIG_TARGET_rockchip_rk3568=y
+          CONFIG_TARGET_MULTI_PROFILE=y
+          CONFIG_TARGET_DEVICE_rockchip_rk3568_DEVICE_rk3568-generic=y
+          CONFIG_PACKAGE_kmod-ifb=m
+          CONFIG_PACKAGE_kmod-sched-cake=m
+          CONFIG_PACKAGE_kmod-sched-core=m
+          EOF
+          make defconfig
+
+      - name: Build kernel and modules
+        run: |
+          make -j$(nproc) target/linux/compile
+          make -j$(nproc) package/kernel/linux/compile
+          make package/index
+
+      - name: Upload kmod artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kmods-rk3568
+          path: bin/targets/rockchip/rk3568/packages/kmod-*.ipk
+          retention-days: 30
+
+      - name: Create Release
+        if: success()
+        uses: softprops/action-gh-release@v1
+        with:
+          files: bin/targets/rockchip/rk3568/packages/kmod-*.ipk
+          tag_name: kmods-${{ github.run_number }}
+          body: |
+            X-WRT 26.04 RK3568 kernel modules
+            - kmod-ifb (ingress shaping)
+            - kmod-sched-cake (CAKE qdisc)
+            - kmod-sched-core (dependency)
