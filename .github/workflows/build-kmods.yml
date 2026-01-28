@@ -43,15 +43,15 @@ jobs:
 
       - name: Build kernel and modules
         run: |
-          # prerequisites for single-package builds
+          # prerequisites
           make -j"$(nproc)" tools/install
           make -j"$(nproc)" toolchain/install
 
-          # build enough of the target to satisfy kernel module builds
+          # DO NOT run target/linux/compile (this is what is failing in your log)
           make -j"$(nproc)" target/compile
           make -j"$(nproc)" package/kernel/linux/compile
 
-          # build only the requested kmods
+          # build only requested kmods
           make -j"$(nproc)" package/kernel/ifb/compile V=s
           make -j"$(nproc)" package/kernel/sched-cake/compile V=s
           make -j"$(nproc)" package/kernel/sched-core/compile V=s
