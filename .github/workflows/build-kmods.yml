@@ -63,4 +63,16 @@ jobs:
         with:
           name: kmods-rk3568
           path: bin/targets/rockchip/rk3568/packages/kmod-*.ipk
-          retention-
+          retention-days: 30
+
+      - name: Create Release
+        if: success()
+        uses: softprops/action-gh-release@v1
+        with:
+          files: bin/targets/rockchip/rk3568/packages/kmod-*.ipk
+          tag_name: kmods-${{ github.run_number }}
+          body: |
+            X-WRT 26.04 RK3568 kernel modules
+            - kmod-ifb (ingress shaping)
+            - kmod-sched-cake (CAKE qdisc)
+            - kmod-sched-core (dependency)
