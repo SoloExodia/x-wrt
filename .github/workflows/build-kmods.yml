@@ -21,7 +21,7 @@ jobs:
           sudo apt-get install -y \
             build-essential libncurses5-dev libncursesw5-dev \
             zlib1g-dev gawk git gettext libssl-dev xsltproc \
-            rsync wget unzip python3 python3-venv flex bison
+            rsync wget unzip python3 python3-venv python3-setuptools flex bison
 
       - name: Update feeds
         run: |
@@ -43,8 +43,19 @@ jobs:
 
       - name: Build kernel and modules
         run: |
-          make -j$(nproc) target/linux/compile
-          make -j$(nproc) package/kernel/linux/compile
+          # prerequisites for single-package builds
+          make -j"$(nproc)" tools/install
+          make -j"$(nproc)" toolchain/install
+
+          # build enough of the target to satisfy kernel module builds
+          make -j"$(nproc)" target/compile
+          make -j"$(nproc)" package/kernel/linux/compile
+
+          # build only the requested kmods
+          make -j"$(nproc)" package/kernel/ifb/compile V=s
+          make -j"$(nproc)" package/kernel/sched-cake/compile V=s
+          make -j"$(nproc)" package/kernel/sched-core/compile V=s
+
           make package/index
 
       - name: Upload kmod artifacts
@@ -52,16 +63,4 @@ jobs:
         with:
           name: kmods-rk3568
           path: bin/targets/rockchip/rk3568/packages/kmod-*.ipk
-          retention-days: 30
-
-      - name: Create Release
-        if: success()
-        uses: softprops/action-gh-release@v1
-        with:
-          files: bin/targets/rockchip/rk3568/packages/kmod-*.ipk
-          tag_name: kmods-${{ github.run_number }}
-          body: |
-            X-WRT 26.04 RK3568 kernel modules
-            - kmod-ifb (ingress shaping)
-            - kmod-sched-cake (CAKE qdisc)
-            - kmod-sched-core (dependency)
+          retention-
